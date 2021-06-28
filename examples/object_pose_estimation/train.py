@@ -39,10 +39,10 @@ occlusions = 3
 image_path = os.path.join(os.path.expanduser('~'), image_path)
 image_paths = glob(image_path)
 x_offset = y_offset = z_offset = 0.05
-num_keypoints = 10
+num_keypoints = 6
 keypoints = np.zeros((num_keypoints, 4))
 radius = 0.25
-angles = np.linspace(0, 2 * np.pi, num_keypoints)
+angles = np.linspace(0, 2 * np.pi, num_keypoints, endpoint=False)
 for keypoint_arg, angle in enumerate(angles):
     x = radius * np.cos(angle)
     y = radius * np.sin(angle)
