@@ -1,10 +1,28 @@
 import numpy as np
-
+from paz.backend.image.draw import lincolor
 from paz.abstract import Processor, SequentialProcessor
 import paz.processors as pr
 from backend import apply_speckle_noise
 from paz.models import Projector
 from paz.pipelines import RandomizeRenderedImage
+
+
+class DrawMask(pr.Processor):
+    def __init__(self, num_classes, colors=None):
+        super(DrawMask, self).__init__()
+        self.num_classes = num_classes
+        self.colors = colors
+        if self.colors is None:
+            self.colors = lincolor(self.num_classes, normalized=False)
+
+    def call(self, image, mask):
+        H, W = mask.shape[:2]
+        mask = np.expand_dims(mask, -1)
+        mask = np.repeat(mask, 3, axis=-1)
+        color = self.colors[0]
+        mask = color * mask
+        image_with_masks = ((0.9 * image) + (0.4 * mask)).astype("uint8")
+        return image_with_masks
 
 
 class _RandomKeypointsRender(pr.Processor):
@@ -27,6 +45,21 @@ class _RandomKeypointsRender(pr.Processor):
         keypoints = self.project(world_to_camera)
         keypoints = self.remove_depth(keypoints)
         return input_image, keypoints, alpha_mask / 255.0
+
+
+class _RandomSegmentationRender(pr.Processor):
+    def __init__(self, scene, image_paths, num_occlusions):
+        super(_RandomSegmentationRender, self).__init__()
+        self.render = pr.Render(scene)
+        self.augment = RandomizeRenderedImage(image_paths, num_occlusions)
+        self.augment.add(pr.NormalizeImage())
+
+    def call(self):
+        image, alpha_mask, world_to_camera = self.render()
+        input_image = self.augment(image, alpha_mask)
+        return input_image, alpha_mask / 255.0
+
+
 
 
 class ApplySpeckleNoise(Processor):

@@ -76,9 +76,10 @@ class SingleView2():
         roll: Float, to sample [-roll, roll] rolls of the Z OpenGL camera axis.
         shift: Float, to sample [-shift, shift] to move in X, Y OpenGL axes.
     """
-    def __init__(self, filepath, viewport_size=(128, 128), y_fov=3.14159 / 4.0,
+    def __init__(self, filepath, initial_pose, viewport_size=(128, 128), y_fov=3.14159 / 4.0,
                  distance=[0.3, 0.5], light=[0.5, 30], top_only=False,
                  roll=None, shift=None):
+        self.initial_pose = initial_pose
         self.distance, self.roll, self.shift = distance, roll, shift
         self.light_intensity, self.top_only = light, top_only
         self._build_scene(filepath, viewport_size, light, y_fov)
@@ -94,7 +95,7 @@ class SingleView2():
         self.camera = self.scene.add(
             PerspectiveCamera(y_fov, aspectRatio=np.divide(*size)))
         self.mesh = self.scene.add(
-            Mesh.from_trimesh(trimesh.load(path), smooth=True))
+            Mesh.from_trimesh(trimesh.load(path), smooth=True), pose=self.initial_pose)
         self.world_origin = self.mesh.mesh.centroid
 
     def _sample_parameters(self):

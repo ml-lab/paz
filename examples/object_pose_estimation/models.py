@@ -94,8 +94,35 @@ def Poseur2DX(input_shape, num_keypoints, mask, filters=64, alpha=0.1):
     volume_shape = [num_keypoints, width, height]
     uv_volume = Reshape(volume_shape, name='uv_volume')(uv_volume)
     keypoints = ExpectedValue2D(name='keypoints')(uv_volume)
-    outputs = [keypoints, segmentation]
+    outputs = [keypoints, mask]
     model = Model(input_tensor, outputs, name='Poseur2DX')
+    return model
+
+
+def PoseurSegmentation(input_shape, num_keypoints, filters=32, alpha=0.1):
+    """Model for discovering keypoint locations in 2D space, modified from
+
+    # Arguments
+        input_shape: List of integers indicating ``[H, W, num_channels]``.
+        num_keypoints: Int. Number of keypoints to discover.
+        filters: Int. Number of filters used in convolutional layers.
+        alpha: Float. Alpha parameter of leaky relu.
+
+    # Returns
+        Keras/tensorflow model
+
+    # References
+        - [Discovery of Latent 3D Keypoints via End-to-end
+            Geometric Reasoning](https://arxiv.org/abs/1807.03146)
+    """
+    width, height = input_shape[:2]
+    base = input_tensor = Input(input_shape, name='image')
+    for base_arg, rate in enumerate([1, 1, 2, 4, 8, 16, 1, 2, 4, 8, 16, 1]):
+        name = 'conv2D_base-%s' % base_arg
+        base = block(base, filters, (rate, rate), alpha, name)
+    x = Conv2D(1, (3, 3), padding='same', name='conv2D_mask')(base)
+    mask = Activation('sigmoid', name='mask')(x)
+    model = Model(input_tensor, mask, name='PoseurSegmentation')
     return model
 
 
