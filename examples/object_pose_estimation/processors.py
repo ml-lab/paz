@@ -14,6 +14,7 @@ class _RandomKeypointsRender(pr.Processor):
         projector = self._build_projector(scene)
         self.project = pr.ProjectKeypoints(projector, keypoints)
         self.augment = RandomizeRenderedImage(image_paths, num_occlusions)
+        self.remove_depth = pr.RemoveKeypointsDepth()
         self.augment.add(pr.NormalizeImage())
 
     def _build_projector(self, scene):
@@ -24,7 +25,8 @@ class _RandomKeypointsRender(pr.Processor):
         image, alpha_mask, world_to_camera = self.render()
         input_image = self.augment(image, alpha_mask)
         keypoints = self.project(world_to_camera)
-        return input_image, keypoints
+        keypoints = self.remove_depth(keypoints)
+        return input_image, keypoints, alpha_mask / 255.0
 
 
 class ApplySpeckleNoise(Processor):

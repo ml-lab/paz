@@ -40,8 +40,8 @@ def Poseur2D(input_shape, num_keypoints, mask, filters=64, alpha=0.1):
         name = 'conv2D_base-%s' % base_arg
         base = block(base, filters, (rate, rate), alpha, name)
     if mask:
-        x = Conv2D(3, (3, 3), padding='same', name='conv2D_seg')(base)
-        segmentation = Activation('sigmoid', name='segmentation')(x)
+        x = Conv2D(1, (3, 3), padding='same', name='conv2D_mas')(base)
+        mask = Activation('sigmoid', name='mask')(x)
     name = 'uv_volume_features-%s'
     uv_volume = Conv2D(num_keypoints, (3, 3),
                        padding='same', name=name % 0)(base)
@@ -52,7 +52,7 @@ def Poseur2D(input_shape, num_keypoints, mask, filters=64, alpha=0.1):
     volume_shape = [num_keypoints, width, height]
     uv_volume = Reshape(volume_shape, name='uv_volume')(uv_volume)
     keypoints = ExpectedValue2D(name='keypoints')(uv_volume)
-    model = Model(input_tensor, [keypoints, segmentation], name='Poseur2D')
+    model = Model(input_tensor, [keypoints, mask], name='Poseur2D')
     return model
 
 
@@ -79,8 +79,8 @@ def Poseur2DX(input_shape, num_keypoints, mask, filters=64, alpha=0.1):
         base = block(base, filters, (rate, rate), alpha, name)
     if mask:
         x = Conv2D(1, (3, 3), padding='same', name='conv2D_seg')(base)
-        segmentation = Activation('sigmoid', name='segmentation')(x)
-    x = Multiply()([segmentation, input_tensor])
+        mask = Activation('sigmoid', name='mask')(x)
+    x = Multiply()([mask, input_tensor])
     for base_arg, rate in enumerate([1, 1, 2, 4, 8, 16, 1, 2, 4, 8, 16, 1]):
         name = 'conv2D_base-2-%s' % base_arg
         x = block(x, filters, (rate, rate), alpha, name)

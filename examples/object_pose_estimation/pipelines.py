@@ -10,7 +10,8 @@ class RandomKeypointsRender(pr.SequentialProcessor):
         H, W = scene.viewport_size
         self.add(_RandomKeypointsRender(*args))
         self.add(pr.SequenceWrapper({0: {'image': [H, W, 3]}},
-                                    {1: {'keypoints': [len(keypoints), 3]}}))
+                                    {1: {'keypoints': [len(keypoints), 2]},
+                                     2: {'mask': [H, W, 1]}}))
 
 
 class DrawNormalizedKeypoints(pr.Processor):

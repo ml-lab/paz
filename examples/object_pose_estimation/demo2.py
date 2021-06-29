@@ -85,37 +85,19 @@ show_image(image)
 show_image(alpha_channel)
 sequence = GeneratingSequence(processor, batch_size, 1000)
 batch = sequence.__getitem__(0)
-"""
+model = Poseur2D(image_shape, num_keypoints, True, 32)
+model.load_weights('trained_models/Poseur2D/weights.12-0.20.hdf5')
 for sample_arg in range(batch_size):
     image = batch[0]['image'][sample_arg]
-    keypoints = batch[1]['keypoints'][sample_arg]
-    mask = batch[1]['mask'][sample_arg]
+    # image = np.expand_dims(image, 0)
+    keypoints, mask = model.predict(np.expand_dims(image, 0))
+    keypoints = keypoints[0]
+    mask = np.squeeze(mask)
+    # keypoints = batch[1]['keypoints'][sample_arg]
+    # mask = batch[1]['mask'][sample_arg]
     image = draw_normalized_keypoints(image, keypoints)
     image = (255.0 * image).astype('uint8')
     show_image(image)
     mask = (255.0 * mask).astype('uint8')
     show_image(mask)
-model = Poseur2D(image_shape, num_keypoints, True, 32)
 
-# setting callbacks
-model_path = os.path.join(save_path, model.name)
-if not os.path.exists(model_path):
-    os.makedirs(model_path)
-log = CSVLogger(os.path.join(model_path, model.name + '-optimization.log'))
-save_path = os.path.join(model_path, 'weights.{epoch:02d}-{loss:.2f}.hdf5')
-checkpoint = ModelCheckpoint(
-    save_path, 'loss', verbose=1, save_weights_only=True)
-
-optimizer = Adam()
-loss = {'keypoints': 'mean_squared_error',
-        'mask': 'binary_crossentropy'}
-model.compile(optimizer, loss)
-
-model.fit(
-    sequence,
-    epochs=num_epochs,
-    verbose=1,
-    callbacks=[checkpoint, log],
-    use_multiprocessing=multiprocessing,
-    workers=workers)
-"""
