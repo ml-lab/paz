@@ -145,7 +145,7 @@ class EstimateKeypoints2D(Processor):
 
 
 model = Poseur2D((128, 128, 3), 6, True, 32)
-model.load_weights('trained_models/Poseur2D/weights.12-0.20.hdf5')
+model.load_weights('trained_models/Poseur2D/weights.15-0.08.hdf5')
 estimate_keypoints = EstimateKeypoints2D(model, 6)
 weights_path = 'trained_models/SSD300/weights.141-2.66.hdf5'
 detect = SSD300SolarPanel(weights_path)
@@ -161,7 +161,7 @@ camera.distortion = np.zeros((4, 1))
 camera.intrinsics = np.array([[focal_length, 0, image_center[0]],
                               [0, focal_length, image_center[1]],
                               [0, 0, 1]])
-offsets = [0.3, 0.3]
+offsets = [0.2, 0.2]
 class_to_dimensions = {'solar_panel': [0.25, 0.25]}
 model_points = np.zeros((6, 3))
 radius = 0.25

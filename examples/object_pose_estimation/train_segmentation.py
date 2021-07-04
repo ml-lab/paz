@@ -82,6 +82,7 @@ model = PoseurSegmentation(image_shape, num_keypoints, 32)
 optimizer = Adam()
 # loss = DiceLoss() + JaccardLoss() + FocalLoss()
 loss = {'mask': [DiceLoss(), JaccardLoss(), FocalLoss()]}
+loss = 'mean_squared_error'
 model.compile(optimizer, loss, metrics='mean_squared_error')
 
 # setting callbacks

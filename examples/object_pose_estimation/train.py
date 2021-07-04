@@ -93,6 +93,7 @@ show_image(image)
 show_image(alpha_channel)
 sequence = GeneratingSequence(processor, batch_size, 1000)
 batch = sequence.__getitem__(0)
+"""
 for sample_arg in range(batch_size):
     image = batch[0]['image'][sample_arg]
     keypoints = batch[1]['keypoints'][sample_arg]
@@ -126,4 +127,3 @@ model.fit(
     callbacks=[checkpoint, log],
     use_multiprocessing=multiprocessing,
     workers=workers)
-"""
