@@ -25,6 +25,70 @@ class DrawMask(pr.Processor):
         return image_with_masks
 
 
+class _InvariantRandomKeypointsRender(pr.Processor):
+    def __init__(
+            self, scene, keypoints, transforms, image_paths, num_occlusions):
+        super(_InvariantRandomKeypointsRender, self).__init__()
+        self.render = pr.Render(scene)
+        projector = self._build_projector(scene)
+        self.project = ProjectInvariantKeypoints(
+            projector, transforms, keypoints)
+        self.transforms = transforms
+        self.augment = RandomizeRenderedImage(image_paths, num_occlusions)
+        self.augment.add(pr.NormalizeImage())
+
+    def _build_projector(self, scene):
+        focal_length = scene.camera.camera.get_projection_matrix()[0, 0]
+        return Projector(focal_length, use_numpy=True)
+
+    def call(self):
+        image, alpha_mask, world_to_camera = self.render()
+        input_image = self.augment(image, alpha_mask)
+        keypoints = self.project(world_to_camera)
+        keypoints = keypoints[..., :2]
+        return input_image, keypoints, alpha_mask / 255.0
+
+
+class ProjectInvariantKeypoints(Processor):
+    """Projects homogenous keypoints (4D) in the camera coordinates system into
+        image coordinates using a projective transformation.
+
+    # Arguments
+        projector: Instance of ''paz.models.Project''.
+        keypoints: Numpy array of shape ''(num_keypoints, 3)''
+    """
+    def __init__(self, projector, invariant_transforms, keypoints):
+        self.projector = projector
+        self.keypoints = keypoints
+        self.invariant_transforms = invariant_transforms
+        num_keypoints, keypoints_size = self.keypoints.shape
+        super(ProjectInvariantKeypoints, self).__init__()
+
+    def call(self, world_to_camera):
+        invariant_keypoints = []
+        counter = 0
+        for transform in self.invariant_transforms:
+            keypoints = self.keypoints.copy()
+            # print('keypoints_shape', keypoints.shape)
+            # print('transform \n', transform, transform.shape)
+            # print('world_to_camera \n', world_to_camera, world_to_camera.shape)
+            # print('keypoints_shape', keypoints.shape)
+            # transform = np.matmul(world_to_camera, transform)
+            keypoints = np.matmul(transform, keypoints.T).T
+            keypoints = np.matmul(world_to_camera, keypoints.T).T
+            # print('keypoints_shape', keypoints.shape)
+            # keypoints = np.matmul(transform, self.keypoints.T).T
+            # keypoints = np.matmul(world_to_camera, keypoints.T).T
+            # keypoints = np.matmul(keypoints, world_to_camera.T)
+            # print(counter, transform, transform.shape)
+            # counter = counter + 1
+            keypoints = np.expand_dims(keypoints, 0)
+            keypoints = self.projector.project(keypoints)[0]
+            invariant_keypoints.append(keypoints)
+        invariant_keypoints = np.asarray(invariant_keypoints)
+        return invariant_keypoints
+
+
 class _RandomKeypointsRender(pr.Processor):
     def __init__(self, scene, keypoints, image_paths, num_occlusions):
         super(_RandomKeypointsRender, self).__init__()

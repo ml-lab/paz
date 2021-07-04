@@ -3,7 +3,9 @@ import numpy as np
 from glob import glob
 
 from scenes import SingleView2
-from pipelines import RandomKeypointsRender, DrawNormalizedKeypoints
+from backend import build_rotational_symmetries_x
+from pipelines import DrawNormalizedKeypoints
+from pipelines import InvariantRandomKeypointsRender
 from paz.backend.image import show_image
 from paz.abstract import GeneratingSequence
 from models import Poseur2D
@@ -73,6 +75,8 @@ for keypoint_arg, angle in enumerate(angles):
     y = radius * np.sin(angle)
     keypoints[keypoint_arg] = x, y, 0.0, 1.0
 
+transforms = build_rotational_symmetries_x(num_keypoints)
+
 path = '/home/octavio/solar_panel.obj'
 cs = np.cos(np.deg2rad(90))
 ss = np.sin(np.deg2rad(90))
@@ -87,20 +91,37 @@ scene = SingleView2(*args)
 scene.scene.ambient_light = [1.0, 1.0, 1.0, 2.0]
 image, alpha_channel, world_to_camera = scene.render()
 # image, alpha_channel = scene.render()
-processor = RandomKeypointsRender(scene, keypoints, image_paths, occlusions)
+processor = InvariantRandomKeypointsRender(
+    scene, keypoints, transforms, image_paths, occlusions)
 draw_normalized_keypoints = DrawNormalizedKeypoints(len(keypoints), 10, True)
 show_image(image)
 show_image(alpha_channel)
 sequence = GeneratingSequence(processor, batch_size, 1000)
 batch = sequence.__getitem__(0)
-"""
-for sample_arg in range(batch_size):
-    image = batch[0]['image'][sample_arg]
-    keypoints = batch[1]['keypoints'][sample_arg]
+for sample_arg in range(3):
+    for arg in range(num_keypoints):
+        image = batch[0]['image'][sample_arg].copy()
+        invariant_keypoints = batch[1]['keypoints'][sample_arg].copy()
+        keypoints = invariant_keypoints[arg, :, :]
+        print(keypoints.shape)
+        image = draw_normalized_keypoints(image, keypoints)
+        image = (255.0 * image).astype('uint8')
+        show_image(image)
+    """
+    images = []
+    for keypoints in invariant_keypoints:
+        image = batch[0]['image'][sample_arg]
+        # print('keypoints \n', keypoints, keypoints.shape)
+        image = draw_normalized_keypoints(image, keypoints)
+        # image = (255.0 * image).astype('uint8')
+        # show_image(image)
+        images.append(image)
+    images = np.concatenate(images, axis=1)
+    images = (255.0 * images).astype('uint8')
+    show_image(images)
+    """
+
     mask = batch[1]['mask'][sample_arg]
-    image = draw_normalized_keypoints(image, keypoints)
-    image = (255.0 * image).astype('uint8')
-    show_image(image)
     mask = (255.0 * mask).astype('uint8')
     show_image(mask)
 """
@@ -127,3 +148,4 @@ model.fit(
     callbacks=[checkpoint, log],
     use_multiprocessing=multiprocessing,
     workers=workers)
+"""

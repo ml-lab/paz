@@ -42,6 +42,39 @@ def add_salt_and_pepper(image):
     return out.astype('uint8')
 
 
+def build_rotational_symmetries_x(num_symmetries, initial_angle=0.0):
+    angles = np.linspace(
+        initial_angle, 2 * np.pi, num_symmetries, endpoint=False)
+    symmetric_transforms = []
+    for angle in angles:
+        print('angle', angle, np.rad2deg(angle))
+        cs = np.cos(angle)
+        ss = np.sin(angle)
+        """
+        transform = np.array([[1.0, 0.0, 0.0, 0.0],
+                              [0.0, +cs, -ss, 0.0],
+                              [0.0, +ss, +cs, 0.0],
+                              [0.0, 0.0, 0.0, 1.0]])
+        transform = np.array([[+cs, -ss, 0.0, 0.0],
+                              [+ss, +cs, 0.0, 0.0],
+                              [0.0, 0.0, 1.0, 0.0],
+                              [0.0, 0.0, 0.0, 1.0]])
+        """
+        transform = np.array([[+cs, 0.0, +ss, 0.0],
+                              [0.0, 1.0, 0.0, 0.0],
+                              [-ss, 0.0, +cs, 0.0],
+                              [0.0, 0.0, 0.0, 1.0]])
+        """
+        transform = np.array([[+cos_angle, -sin_angle, 0.0, 0.0],
+                              [+sin_angle, +cos_angle, 0.0, 0.0],
+                              [0.0, 0.0, 1.0, 0.0],
+                              [0.0, 0.0, 0.0, 1.0]])
+        """
+        # transform = np.eye(4)
+        symmetric_transforms.append(transform)
+    return symmetric_transforms
+
+
 """
 image = load_image('solar_panel.jpg')
 show_image(image)
