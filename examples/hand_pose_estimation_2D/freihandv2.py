@@ -1,69 +1,80 @@
 import os
-import glob
 import json
 import numpy as np
 
 from paz.abstract import Loader
 import paz.processors as pr
 
-
-def list_filepaths(path, extensions):
-    if not isinstance(extensions, list):
-        raise ValueError('Extensions must be a list')
-    wild_card = os.path.join(path, *extensions)
-    filepaths = glob.glob(wild_card)
-    return filepaths
-
-
-def extend_path_by_split(path, split, split_to_name):
-    name = split_to_name[split]
-    return os.path.join(path, name)
+from backend import extend_path_by_split, list_filepaths
 
 
 class FreiHANDV2(Loader):
     def __init__(self, path, split):
         self._split_to_name = {pr.TRAIN: 'training', pr.TEST: 'evaluation'}
+        self._topics = ['image', 'masks', 'keypoints3D', 'camera_matrix']
         super(FreiHANDV2, self).__init__(path, split, None, 'FreiHANDV2')
 
     def load_data(self):
-        images = self._extract_image_paths()
-        masks = self._extract_mask_paths()
+        camera_matrices = self._extract_camera_matrices()
         keypoints = self._extract_keypoints()
+        images = self._extract_image_paths()
+        masks = self._extract_masks_paths()
         data = []
-        for image, mask, keypointset in zip(images, masks, keypoints):
-            sample = {'image': image, 'mask': mask, 'keypoints': keypointset}
+        data_iterator = zip(images, masks, keypoints, camera_matrices)
+        for sample_data in data_iterator:
+            sample = dict(zip(self._topics, sample_data))
             data.append(sample)
         return data
 
-    def _extract_image_paths(self):
+    def _extract_filepaths(self, extensions):
         path = extend_path_by_split(self.path, self.split, self._split_to_name)
-        extensions = ['rgb', '*jpg']
-        image_paths = list_filepaths(path, extensions)
-        image_paths = sorted(image_paths)
-        return image_paths
+        paths = list_filepaths(path, extensions)
+        paths = sorted(paths)
+        return paths
 
-    def _extract_mask_paths(self):
-        path = extend_path_by_split(self.path, self.split, self._split_to_name)
-        extensions = ['mask', '*jpg']
-        mask_paths = list_filepaths(path, extensions)
-        mask_paths = sorted(mask_paths)
-        # masks are repeated at every 32560 image sample
+    def _extract_image_paths(self):
+        return self._extract_filepaths(['rgb', '*jpg'])
+
+    def _extract_masks_paths(self):
+        mask_paths = self._extract_filepaths(['mask', '*jpg'])
+        # masks are repeated four times
         return mask_paths + mask_paths + mask_paths + mask_paths
 
-    def _extract_keypoints(self):
+    def _extract_json(self, extension):
         internal_name = self._split_to_name[self.split]
-        filename = os.path.join(self.path, internal_name + '_xyz.json')
+        filename = os.path.join(self.path, internal_name + extension)
         filedata = open(filename, 'r')
-        keypoints = json.load(filedata)
-        # labels are repeated at every 32560 image sample
-        keypoints = keypoints + keypoints + keypoints + keypoints
-        keypoints = np.array(keypoints)
-        return keypoints
+        data = json.load(filedata)
+        # labels are repeated four times
+        data = data + data + data + data
+        return np.array(data)
+
+    def _extract_keypoints(self):
+        return self._extract_json('_xyz.json')
+
+    def _extract_camera_matrices(self):
+        return self._extract_json('_K.json')
 
 
 if __name__ == '__main__':
+    from backend import project_to_image_space
+    from backend import draw_keypoints2D
+    from pipelines import PreprocessHandPose
+    from paz.backend.image import lincolor, load_image, show_image
+    from paz.backend.keypoints import denormalize_keypoints
     user = os.path.expanduser('~')
     path = os.path.join(user, 'paz/examples/hand_pose_estimation_2D/dataset/')
     split = pr.TRAIN
     data_manager = FreiHANDV2(path, split)
     data = data_manager.load_data()
+    preprocess = PreprocessHandPose((128, 128))
+    for sample in data:
+        preprocessed_sample = preprocess(sample)
+        image = preprocessed_sample['inputs']['image']
+        keypoints2D = preprocessed_sample['labels']['keypoints2D']
+        image = (image * 255.0).astype('uint8')
+        H, W = image.shape[:2]
+        keypoints2D = denormalize_keypoints(keypoints2D, H, W)
+        keypoints2D = keypoints2D.astype(int)
+        draw_keypoints2D(image, keypoints2D, lincolor(21), 5)
+        show_image(image)
