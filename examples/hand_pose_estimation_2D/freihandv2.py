@@ -57,17 +57,17 @@ class FreiHANDV2(Loader):
 
 
 if __name__ == '__main__':
-    from backend import project_to_image_space
     from backend import draw_keypoints2D
     from pipelines import PreprocessHandPose
-    from paz.backend.image import lincolor, load_image, show_image
+    from paz.backend.image import lincolor, show_image
     from paz.backend.keypoints import denormalize_keypoints
+
     user = os.path.expanduser('~')
     path = os.path.join(user, 'paz/examples/hand_pose_estimation_2D/dataset/')
     split = pr.TRAIN
     data_manager = FreiHANDV2(path, split)
     data = data_manager.load_data()
-    preprocess = PreprocessHandPose((128, 128))
+    preprocess = PreprocessHandPose((128, 128), pr.TRAIN)
     for sample in data:
         preprocessed_sample = preprocess(sample)
         image = preprocessed_sample['inputs']['image']

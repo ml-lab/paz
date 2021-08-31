@@ -12,3 +12,6 @@
 
 * Extract FreiHand_pub_v2.zip:
     ``unzip FreiHAND_pub_v2.zip``
+
+* Run freihandv2.py to see that images are being correctly preprocessed
+    ``python freihandv2.py``
