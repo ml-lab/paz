@@ -54,7 +54,7 @@ for node in nodes:
 
 image_shape = (128, 128, 3)
 y_fov = 3.14159 / 4.0
-distance = [0.7, 0.9]
+distance = [0.7, 0.7]
 light = [30, 30]
 top_only = True
 roll = np.pi
@@ -67,7 +67,7 @@ workers = 0
 image_path = os.path.join(os.path.expanduser('~'), image_path)
 image_paths = glob(image_path)
 x_offset = y_offset = z_offset = 0.05
-num_keypoints = 2
+num_keypoints = 6
 keypoints = np.zeros((num_keypoints, 4))
 radius = 0.25
 angles = np.linspace(0, 2 * np.pi, num_keypoints, endpoint=False)
@@ -76,17 +76,7 @@ for keypoint_arg, angle in enumerate(angles):
     y = radius * np.sin(angle)
     keypoints[keypoint_arg] = x, y, 0.0, 1.0
 
-angle = 0
-max_radius = 1.0
-keypoints = np.zeros((num_keypoints, 4))
-scales = np.linspace(0, 0.25, num_keypoints)
-print('scales', scales)
-for keypoint_arg, scale in enumerate(scales):
-    x = scale * np.cos(angle)
-    y = scale * np.sin(angle)
-    keypoints[keypoint_arg] = x, y, 0.0, 1.0
-
-transforms = build_rotational_symmetries_x(6)
+transforms = build_rotational_symmetries_x(num_keypoints)
 
 path = '/home/octavio/solar_panel.obj'
 cs = np.cos(np.deg2rad(90))
@@ -109,8 +99,8 @@ show_image(image)
 show_image(alpha_channel)
 sequence = GeneratingSequence(processor, batch_size, 1000)
 batch = sequence.__getitem__(0)
-for sample_arg in range(3):
-    for arg in range(6):
+for sample_arg in range(0):
+    for arg in range(num_keypoints):
         image = batch[0]['image'][sample_arg].copy()
         invariant_keypoints = batch[1]['keypoints'][sample_arg].copy()
         keypoints = invariant_keypoints[arg, :, :]
@@ -132,34 +122,19 @@ for sample_arg in range(3):
     show_image(images)
     """
 
-    # mask = batch[1]['mask'][sample_arg]
-    # mask = (255.0 * mask).astype('uint8')
-    # show_image(mask)
-"""
-model = Poseur2D(image_shape, num_keypoints, False, 32)
+    mask = batch[1]['mask'][sample_arg]
+    mask = (255.0 * mask).astype('uint8')
+    show_image(mask)
 
-# setting callbacks
-model_path = os.path.join(save_path, model.name)
-if not os.path.exists(model_path):
-    os.makedirs(model_path)
-log = CSVLogger(os.path.join(model_path, model.name + '-optimization.log'))
-save_path = os.path.join(model_path, 'weights.{epoch:02d}-{loss:.2f}.hdf5')
-checkpoint = ModelCheckpoint(
-    save_path, 'loss', verbose=1, save_weights_only=True)
+model = Poseur2D(image_shape, num_keypoints, True, 32)
+model.load_weights('trained_models/Poseur2D/weights.06-0.01.hdf5')
+for arg in range(batch_size):
+    image = batch[0]['image'].copy()
+    img = image[arg:arg + 1]
+    keypoints = model.predict(img)[0]
+    kps = keypoints[0, :, :]
+    img = img[0]
+    img = draw_normalized_keypoints(img, kps)
+    img = (255.0 * img).astype('uint8')
+    show_image(img)
 
-optimizer = Adam()
-loss = {'keypoints': InvariantMSE(),
-        'mask': 'binary_crossentropy'}
-loss_weights = {'keypoints': 1.0, 'mask': 0.1}
-# model.compile(optimizer, loss, loss_weights=loss_weights)
-loss = {'keypoints': InvariantMSE()}
-model.compile(optimizer, loss)
-
-model.fit(
-    sequence,
-    epochs=num_epochs,
-    verbose=1,
-    callbacks=[checkpoint, log],
-    use_multiprocessing=multiprocessing,
-    workers=workers)
-"""

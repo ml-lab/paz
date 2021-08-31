@@ -16,6 +16,7 @@ class RandomKeypointsRender(pr.SequentialProcessor):
                                      2: {'mask': [H, W, 1]}}))
 
 
+"""
 class InvariantRandomKeypointsRender(pr.SequentialProcessor):
     def __init__(
             self, scene, keypoints, transforms, image_paths, num_occlusions):
@@ -27,6 +28,19 @@ class InvariantRandomKeypointsRender(pr.SequentialProcessor):
             {0: {'image': [H, W, 3]}},
             {1: {'keypoints': [len(transforms), len(keypoints), 2]},
              2: {'mask': [H, W, 1]}}))
+"""
+
+
+class InvariantRandomKeypointsRender(pr.SequentialProcessor):
+    def __init__(
+            self, scene, keypoints, transforms, image_paths, num_occlusions):
+        super(InvariantRandomKeypointsRender, self).__init__()
+        args = [scene, keypoints, transforms, image_paths, num_occlusions]
+        H, W = scene.viewport_size
+        self.add(_InvariantRandomKeypointsRender(*args))
+        self.add(pr.SequenceWrapper(
+            {0: {'image': [H, W, 3]}},
+            {1: {'keypoints': [len(transforms), len(keypoints), 2]}}))
 
 
 class RandomSegmentationRender(pr.SequentialProcessor):

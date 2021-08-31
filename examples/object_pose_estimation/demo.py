@@ -58,6 +58,8 @@ class EstimatePoseKeypoints(Processor):
         self.clip = pr.ClipBoxes2D()
         self.crop = pr.CropBoxes2D()
         self.change_coordinates = pr.ChangeKeypointsCoordinateSystem()
+        # import cv2
+        # self.solve_PNP = pr.SolvePNP(model_points, camera, solver=cv2.SOLVEPNP_P3P)
         self.solve_PNP = pr.SolvePNP(model_points, camera)
         self.draw_keypoints = pr.DrawKeypoints2D(self.num_keypoints, radius)
         self.draw_box = pr.DrawBoxes3D(camera, class_to_dimensions, thickness)
@@ -72,8 +74,10 @@ class EstimatePoseKeypoints(Processor):
         cropped_images = self.crop(image, boxes2D)
         poses6D, keypoints2D, masks = [], [], []
         for cropped_image, box2D in zip(cropped_images, boxes2D):
+            show_image(cropped_image)
             crop_results = self.estimate_keypoints(cropped_image)
             keypoints, mask = crop_results['keypoints'], crop_results['mask']
+            print('hola', keypoints.shape)
             keypoints = self.change_coordinates(keypoints, box2D)
             pose6D = self.solve_PNP(keypoints)
             pose6D.class_name = box2D.class_name
@@ -81,7 +85,7 @@ class EstimatePoseKeypoints(Processor):
             image_with_results = self.draw_box(image_with_results, pose6D)
             keypoints2D.append(keypoints)
             poses6D.append(pose6D)
-            mask = self.change_mask(mask, box2D, image_with_results)
+            # mask = self.change_mask(mask, box2D, image_with_results)
             masks.append(mask)
         return self.wrap(image, boxes2D, keypoints2D, poses6D, masks)
 
@@ -134,9 +138,18 @@ class EstimateKeypoints2D(Processor):
         self.wrap = pr.WrapOutput(['image', 'keypoints', 'mask'])
 
     def call(self, image):
-        keypoints, mask = self.predict(image)
+        # keypoints, mask = self.predict(image)
+        keypoints = self.predict(image)
         keypoints = np.squeeze(keypoints)
-        mask = np.squeeze(mask)
+        middle_point = np.diff(keypoints, axis=0)
+        # middle_point = middle_point / 3
+        keypoints = np.insert(keypoints, 1, 1 * middle_point / 5, 0)
+        keypoints = np.insert(keypoints, 1, 2 * middle_point / 5, 0)
+        keypoints = np.insert(keypoints, 1, 3 * middle_point / 5, 0)
+        keypoints = np.insert(keypoints, 1, 4 * middle_point / 5, 0)
+        print('value', keypoints.shape)
+        # mask = np.squeeze(mask)
+        mask = np.zeros((128, 128, 3))
 
         keypoints = self.denormalize(keypoints, image)
         if self.draw:
@@ -144,11 +157,14 @@ class EstimateKeypoints2D(Processor):
         return self.wrap(image, keypoints, mask)
 
 
-model = Poseur2D((128, 128, 3), 6, True, 32)
-model.load_weights('trained_models/Poseur2D/weights.15-0.08.hdf5')
-estimate_keypoints = EstimateKeypoints2D(model, 6)
+# model = Poseur2D((128, 128, 3), 6, True, 32)
+num_keypoints = 2
+num_model_points = num_keypoints + 4
+model = Poseur2D((128, 128, 3), num_keypoints, False, 32)
+model.load_weights('trained_models/Poseur2D/weights.06-0.01.hdf5')
+estimate_keypoints = EstimateKeypoints2D(model, num_model_points)
 weights_path = 'trained_models/SSD300/weights.141-2.66.hdf5'
-detect = SSD300SolarPanel(weights_path)
+detect = SSD300SolarPanel(weights_path, draw=False)
 
 camera = Camera(0)
 image_size = [720, 1280]
@@ -161,8 +177,9 @@ camera.distortion = np.zeros((4, 1))
 camera.intrinsics = np.array([[focal_length, 0, image_center[0]],
                               [0, focal_length, image_center[1]],
                               [0, 0, 1]])
-offsets = [0.2, 0.2]
-class_to_dimensions = {'solar_panel': [0.25, 0.25]}
+offsets = [0.10, 0.10]
+class_to_dimensions = {'solar_panel': [2.5, 2.5]}
+"""
 model_points = np.zeros((6, 3))
 radius = 0.25
 angles = np.linspace(0, 2 * np.pi, 6, endpoint=False)
@@ -170,6 +187,18 @@ for keypoint_arg, angle in enumerate(angles):
     x = radius * np.cos(angle)
     y = radius * np.sin(angle)
     model_points[keypoint_arg] = x, y, 0.0
+"""
+
+angle = 0
+max_radius = 1.0
+model_points = np.zeros((num_model_points, 3))
+scales = np.linspace(0, 0.25, num_model_points)
+print('scales', scales)
+for keypoint_arg, scale in enumerate(scales):
+    x = scale * np.cos(angle)
+    y = scale * np.sin(angle)
+    model_points[keypoint_arg] = x, y, 0.0
+model_points = model_points * 1000
 
 estimate_pose = EstimatePoseKeypoints(
     detect, estimate_keypoints, camera, offsets,
@@ -180,10 +209,13 @@ image_paths = glob.glob('datasets/test_solar_panel/*.jpg')
 for image_arg, image_path in enumerate(image_paths):
     image = load_image(image_path)
     results = estimate_pose(image)
+    print('results')
     show_image(results['image'])
+    """
     masks = results['mask']
     if len(masks) != 0:
         mask = masks[0]
         mask = (255 * mask).astype('uint8')
-        show_image(mask)
+        # show_image(mask)
+    """
     # write_image('results/image_%s.png' % image_arg, results['image'])

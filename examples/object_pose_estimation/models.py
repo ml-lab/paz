@@ -52,7 +52,10 @@ def Poseur2D(input_shape, num_keypoints, mask, filters=64, alpha=0.1):
     volume_shape = [num_keypoints, width, height]
     uv_volume = Reshape(volume_shape, name='uv_volume')(uv_volume)
     keypoints = ExpectedValue2D(name='keypoints')(uv_volume)
-    model = Model(input_tensor, [keypoints, mask], name='Poseur2D')
+    outputs = [keypoints]
+    if mask:
+        outputs.append([mask])
+    model = Model(input_tensor, outputs, name='Poseur2D')
     return model
 
 

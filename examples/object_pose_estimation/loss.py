@@ -35,9 +35,8 @@ class InvariantMSE(Loss):
         invariant_transforms: List of numpy arrays. Each numpy array is a
             transformation that leads the pose invariant.
     """
-    def __init__(self, compute_loss):
-        super(SymmetricPose, self).__init__()
-        self.compute_loss = compute_loss
+    def __init__(self):
+        super(InvariantMSE, self).__init__()
 
     def call(self, y_true, y_pred):
         """ Computes invariant mean squared error.

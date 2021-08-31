@@ -8,6 +8,7 @@ from paz.backend.camera import Camera
 from paz.pipelines import DetectSingleShot
 from paz.models.detection import SSD300
 from models import PoseurSegmentation
+from models import Poseur2D
 from processors import DrawMask
 
 
@@ -114,9 +115,11 @@ class Segment(Processor):
 
 model = PoseurSegmentation((128, 128, 3), 6, 32)
 model.load_weights('trained_models/PoseurSegmentation/weights.07-0.04.hdf5')
+# model = Poseur2D((128, 128, 3), 6, True, 32)
+# model.load_weights('trained_models/Poseur2D/weights.06-0.01.hdf5')
 # estimate_keypoints = EstimateKeypoints2D(model, 6)
 weights_path = 'trained_models/SSD300/weights.141-2.66.hdf5'
-detect = SSD300SolarPanel(weights_path)
+detect = SSD300SolarPanel(weights_path, draw=False)
 segment = Segment(model)
 
 offsets = [0.3, 0.3]
