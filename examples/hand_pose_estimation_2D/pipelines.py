@@ -1,6 +1,10 @@
 import processors as pe
 
 from paz import processors as pr
+from tensorflow.keras.utils import get_file
+import cv2
+import numpy as np
+import os
 
 
 class PreprocessHandPose(pr.SequentialProcessor):
@@ -51,3 +55,57 @@ class PreprocessKeypoints(pr.SequentialProcessor):
         super(PreprocessKeypoints, self).__init__()
         self.add(pe.ProjectToImageSpace())
         self.add(pr.NormalizeKeypoints(original_image_size))
+
+
+class HaarCascadeDetector(object):
+    """Haar cascade face detector.
+
+    # Arguments
+        path: String. Postfix to default openCV haarcascades XML files, see [1]
+            e.g. `eye`, `frontalface_alt2`, `fullbody`
+        class_arg: Int. Class label argument.
+        scale = Float. Scale for image reduction
+        neighbors: Int. Minimum neighbors
+
+    # Reference
+        - [Haar
+            Cascades](https://github.com/opencv/opencv/tree/master/data/haarcascades)
+    """
+
+    def __init__(self, weights='haarcascade_frontalface_default.xml',
+                 class_arg=None, scale=1.3, neighbors=5,
+                 URL=('https://raw.githubusercontent.com/opencv/opencv/'
+                      'master/data/haarcascades/')):
+        self.weights = weights
+        self.URL = URL
+        # self.url = os.path.join(URL, self.weights)
+        self.path = get_file(self.weights, self.URL, cache_subdir='paz/models')
+        self.model = cv2.CascadeClassifier(self.path)
+        self.class_arg = class_arg
+        self.scale = scale
+        self.neighbors = neighbors
+
+    def predict(self, gray_image):
+        """ Detects faces from gray images.
+
+        # Arguments
+            gray_image: Numpy array of shape ``(H, W, 2)``.
+
+        # Returns
+            Numpy array of shape ``(num_boxes, 4)``.
+        """
+        if len(gray_image.shape) != 2:
+            raise ValueError('Invalid gray image shape:', gray_image.shape)
+        args = (gray_image, self.scale, self.neighbors)
+        boxes = self.model.detectMultiScale(*args)
+        boxes_point_form = np.zeros_like(boxes)
+        if len(boxes) != 0:
+            boxes_point_form[:, 0] = boxes[:, 0]
+            boxes_point_form[:, 1] = boxes[:, 1]
+            boxes_point_form[:, 2] = boxes[:, 0] + boxes[:, 2]
+            boxes_point_form[:, 3] = boxes[:, 1] + boxes[:, 3]
+            if self.class_arg is not None:
+                class_args = np.ones((len(boxes_point_form), 1))
+                class_args = class_args * self.class_arg
+                boxes_point_form = np.hstack((boxes_point_form, class_args))
+        return boxes_point_form.astype('int')
